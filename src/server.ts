@@ -1,6 +1,8 @@
 import { createApp } from "./app.js";
+import { env } from "./config/env.js";
+import "./services/firebase.js";
 
-const port = Number(process.env.PORT) || 8080;
+const port = env.port;
 
 createApp().listen(port, (error) => {
   if (error) throw error;
