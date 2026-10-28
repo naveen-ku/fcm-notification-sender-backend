@@ -1,0 +1,616 @@
+{
+  "info": {
+    "_postman_id": "31ddedb3-488a-4b7a-a821-2bd3aa5210c6",
+    "name": "fcm-notification-backend",
+    "description": "Requests for the FCM Android push backend (`POST /api/v1/notifications/send`).\n\nThe body is a firebase-admin Android message: exactly one target (`token`, `topic`, `condition`, `fid`, `tokens` or `fids`) plus `notification`, `data` and/or `android`.\n\n**Variables** (collection → Variables):\n- `baseUrl` — where the server runs, default `http://localhost:8080`.\n- `deviceToken` — FCM registration token from the Android app (`FirebaseMessaging.getInstance().token`).\n- `deviceFid` — Firebase Installation ID from the Android app (`FirebaseInstallations.getInstance().id`).\n\nStart with **Get Health** and **Dry Run By Topic**: neither needs a device, and the dry run proves the Firebase credentials work without delivering anything. The **Reject …** requests never reach FCM.\n\nSee README.md in the repository for the full walkthrough.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "id": "258502b6-9de6-4270-bb16-002a60ccc7c4",
+      "name": "Get Health",
+      "description": "Checks the server is up. No Firebase call.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Service reports ok\", () => {",
+              "  pm.expect(pm.response.json().status).to.eql(\"ok\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        }
+      },
+      "response": []
+    },
+    {
+      "id": "0b6f0298-2921-4bf4-a58d-57cf1b8397fd",
+      "name": "Dry Run By Topic",
+      "description": "FCM validates the message and the server's credentials but delivers nothing (`dryRun: true`). Needs no device: run this first.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"FCM returned a message id\", () => {",
+              "  pm.expect(pm.response.json().messageIds).to.have.lengthOf(1);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"topic\": \"all\",\n  \"notification\": {\n    \"title\": \"Test\",\n    \"body\": \"Hello from Postman\"\n  },\n  \"dryRun\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/send",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "notifications", "send"]
+        }
+      },
+      "response": []
+    },
+    {
+      "id": "aec5234f-c041-41c1-8a4b-4a91f431e8ab",
+      "name": "Send Simple Notification By Topic",
+      "description": "Delivers to every device subscribed to the `all` topic. The Android app subscribes with `FirebaseMessaging.getInstance().subscribeToTopic(\"all\")`.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"FCM accepted the message\", () => {",
+              "  pm.expect(pm.response.json().successCount).to.be.above(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"topic\": \"all\",\n  \"notification\": {\n    \"title\": \"Monthly report\",\n    \"body\": \"Your expense report for this month is ready\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/send",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "notifications", "send"]
+        }
+      },
+      "response": []
+    },
+    {
+      "id": "88f4c475-8c03-4920-b680-8db015967726",
+      "name": "Send Notification By Token",
+      "description": "Delivers to one device. Set the `deviceToken` variable first. Shows `data` for the app and Android options: `priority` and `ttl` (milliseconds).\n\nThe notification appears in the tray only while the app is in the background; in the foreground the app's `onMessageReceived` gets it instead.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"FCM accepted the message\", () => {",
+              "  pm.expect(pm.response.json().successCount).to.be.above(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"token\": \"{{deviceToken}}\",\n  \"notification\": {\n    \"title\": \"Budget alert\",\n    \"body\": \"You have spent 90% of your monthly budget\"\n  },\n  \"data\": {\n    \"route\": \"/budgets/42\"\n  },\n  \"android\": {\n    \"priority\": \"high\",\n    \"ttl\": 3600000,\n    \"notification\": {\n      \"color\": \"#4caf50\"\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/send",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "notifications", "send"]
+        }
+      },
+      "response": []
+    },
+    {
+      "id": "1eca68c0-83de-477c-8af7-feaa67c543cd",
+      "name": "Send Notification By Tokens",
+      "description": "Delivers to up to 500 devices in one call. The second token is a placeholder, so expect it in `errors`; tokens FCM reports as no longer registered also appear in `invalidTargets`. Replace it with a real token to send to two devices.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"FCM accepted the message\", () => {",
+              "  pm.expect(pm.response.json().successCount).to.be.above(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tokens\": [\n    \"{{deviceToken}}\",\n    \"replace-with-a-second-device-token\"\n  ],\n  \"notification\": {\n    \"title\": \"Budget alert\",\n    \"body\": \"You have spent 90% of your monthly budget\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/send",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "notifications", "send"]
+        }
+      },
+      "response": []
+    },
+    {
+      "id": "a187acc8-c609-41b0-a610-7f1c0e7f5c60",
+      "name": "Send Notification By Condition",
+      "description": "Delivers to devices matching a topic expression (1 to 5 topics).",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"FCM accepted the message\", () => {",
+              "  pm.expect(pm.response.json().successCount).to.be.above(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"condition\": \"'all' in topics || 'beta' in topics\",\n  \"notification\": {\n    \"title\": \"Budget alert\",\n    \"body\": \"You have spent 90% of your monthly budget\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/send",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "notifications", "send"]
+        }
+      },
+      "response": []
+    },
+    {
+      "id": "fac5abf9-d91f-409b-8ca4-fafe6b319e9f",
+      "name": "Send Notification By FID",
+      "description": "Delivers to one Firebase Installation ID. Set the `deviceFid` variable first.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"FCM accepted the message\", () => {",
+              "  pm.expect(pm.response.json().successCount).to.be.above(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fid\": \"{{deviceFid}}\",\n  \"notification\": {\n    \"title\": \"Budget alert\",\n    \"body\": \"You have spent 90% of your monthly budget\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/send",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "notifications", "send"]
+        }
+      },
+      "response": []
+    },
+    {
+      "id": "eeba0f65-6818-4d6b-a97f-32586b5b4f62",
+      "name": "Send Notification By FIDs",
+      "description": "Delivers to up to 500 Firebase Installation IDs in one call.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"FCM accepted the message\", () => {",
+              "  pm.expect(pm.response.json().successCount).to.be.above(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fids\": [\n    \"{{deviceFid}}\"\n  ],\n  \"notification\": {\n    \"title\": \"Budget alert\",\n    \"body\": \"You have spent 90% of your monthly budget\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/send",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "notifications", "send"]
+        }
+      },
+      "response": []
+    },
+    {
+      "id": "59a21dcd-5a9f-4d0f-9ad8-0507945f0772",
+      "name": "Reject Missing Target",
+      "description": "No target field, so validation fails with 400 before FCM is called.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Error is reported on target\", () => {",
+              "  const paths = pm.response.json().error.details.map((d) => d.path);",
+              "  pm.expect(paths).to.include(\"target\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"notification\": {\n    \"title\": \"Hi\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/send",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "notifications", "send"]
+        }
+      },
+      "response": []
+    },
+    {
+      "id": "fe87e9c1-c1b6-4ebd-8b01-fbd96835cd72",
+      "name": "Reject iOS Fields",
+      "description": "Only Android is supported, so `apns` (and `webpush`) are rejected with 400.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Error names the apns key\", () => {",
+              "  const messages = pm.response.json().error.details.map((d) => d.message);",
+              "  pm.expect(messages.join()).to.include('\"apns\"');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"topic\": \"all\",\n  \"data\": {\n    \"kind\": \"sync\"\n  },\n  \"apns\": {}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/send",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "notifications", "send"]
+        }
+      },
+      "response": []
+    },
+    {
+      "id": "02f47e04-fd63-46bd-bcf1-189eef31d06c",
+      "name": "Reject REST-Style TTL",
+      "description": "Field names and units follow firebase-admin, not the FCM REST docs: `ttl` is milliseconds (`3600000`), not `\"3600s\"`.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Error is reported on android.ttl\", () => {",
+              "  const paths = pm.response.json().error.details.map((d) => d.path);",
+              "  pm.expect(paths).to.include(\"android.ttl\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"topic\": \"all\",\n  \"data\": {\n    \"kind\": \"sync\"\n  },\n  \"android\": {\n    \"ttl\": \"3600s\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/send",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "notifications", "send"]
+        }
+      },
+      "response": []
+    },
+    {
+      "id": "83c6a124-b43d-4535-87bb-9c041ccf98e0",
+      "name": "Reject Reserved Data Key",
+      "description": "FCM reserves `from`, `message_type` and keys starting with `google` or `gcm`.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Error is reported on data.google.sent_time\", () => {",
+              "  const paths = pm.response.json().error.details.map((d) => d.path);",
+              "  pm.expect(paths).to.include(\"data.google.sent_time\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"topic\": \"all\",\n  \"data\": {\n    \"google.sent_time\": \"1\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/send",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "notifications", "send"]
+        }
+      },
+      "response": []
+    },
+    {
+      "id": "58ed9211-8002-4991-a64c-b72f96704e47",
+      "name": "Reject Missing Payload",
+      "description": "A message needs `notification`, `data`, `android.notification` or `android.data` (unless `dryRun` is set).",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Error is reported on payload\", () => {",
+              "  const paths = pm.response.json().error.details.map((d) => d.path);",
+              "  pm.expect(paths).to.include(\"payload\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"topic\": \"all\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/notifications/send",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "notifications", "send"]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "deviceToken",
+      "value": ""
+    },
+    {
+      "key": "deviceFid",
+      "value": ""
+    }
+  ]
+}
