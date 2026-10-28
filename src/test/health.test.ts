@@ -7,6 +7,9 @@ describe("GET /health", () => {
     const response = await request(createApp()).get("/health");
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ status: "ok" });
+    expect(response.body).toEqual({
+      status: "ok",
+      service: "fcm-push-sender-backend",
+    });
   });
 });
